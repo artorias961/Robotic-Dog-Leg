@@ -1,0 +1,6 @@
+# Zephyr build output
+build/
+
+# Per-computer settings and tools made by scripts/setup
+scripts/.workspace
+scripts/bin/
