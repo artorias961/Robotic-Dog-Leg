@@ -24,7 +24,7 @@ You need the Zephyr workspace from the main [Robotic-Dog](https://github.com/art
 | 2. Build                     | `scripts\02_build.bat`   | `bash scripts/02_build.sh` |
 | 3. Flash and open the monitor | `scripts\04_flash.bat`   | `bash scripts/04_flash.sh` |
 
-When `04_flash` prints **Press the button on the Teensy now**, press the Teensy's program button. The orange LED then blinks once a second, and the serial monitor shows the firmware's log every 2 seconds. Quit the monitor with **Ctrl+]**.
+When `04_flash` prints **Press the button on the Teensy now**, press the Teensy's program button. The orange LED then blinks (half a second on, half a second off), and the serial monitor prints a line each time it turns on or off. Quit the monitor with **Ctrl+]**.
 
 After editing `prj.conf` or `app.overlay`, do a clean full build: `scripts\03_clean_build.bat` or `bash scripts/03_clean_build.sh`.
 
@@ -32,9 +32,9 @@ After editing `prj.conf` or `app.overlay`, do a clean full build: `scripts\03_cl
 
 ```
 CMakeLists.txt        Connects the app to Zephyr
-prj.conf              Zephyr settings: C++20, LED, logging, USB console
+prj.conf              Zephyr settings: C++20, LED, USB console
 app.overlay           Sends the console to the Teensy's USB port
-src/main.cpp          The firmware
+src/main.cpp          The blink test firmware
 scripts/              Setup, build, flash, and serial monitor scripts (run in number order)
 docs/wiki/            Source of the wiki pages
 ```

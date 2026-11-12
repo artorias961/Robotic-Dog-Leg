@@ -2,7 +2,8 @@
  * Robotic Dog - legs firmware devicetree overlay (Teensy 4.1)
  *
  * Sends the Zephyr console (printk + logging) to a USB serial port on the
- * Teensy's micro-USB connector instead of hardware pins 0 (RX1) / 1 (TX1).
+ * Teensy's micro-USB connector instead of the board's default console UART
+ * (pin table: Zephyr's Teensy 4 board documentation).
  * Same as Zephyr's cdc-acm-console snippet.
  */
 
