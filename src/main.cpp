@@ -1,35 +1,33 @@
-// Robotic Dog - legs firmware: blink test
-// Board: Teensy 4.1   RTOS: Zephyr   Language: C++20
-//
-// Turns the orange LED on and off and prints each change on the USB serial
-// port. If the LED blinks and the lines appear, your setup works.
-
+// Per-leg firmware entry point. The four threads (rx, control, tx,
+// supervisor) are defined in their own files via K_THREAD_DEFINE and wait on
+// init_done; main() brings up the hardware, starts the watchdog, then
+// releases them. Boot-safe by construction: PWM outputs stay disabled until
+// the master's ENABLE command arrives over the acked channel.
 #include <zephyr/kernel.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/sys/printk.h>
+#include <zephyr/logging/log.h>
 
-static_assert(__cplusplus >= 202002L, "Build as C++20 (CONFIG_STD_CPP20=y in prj.conf)");
+#include "config.hpp"
+#include "hal.hpp"
+#include "shared.hpp"
 
-namespace {
+LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
-constexpr int kBlinkMs = 500; // how long the LED stays on, then off
+int main() {
+  static constexpr const char* kLegName[4] = {"FR", "FL", "RR", "RL"};  // by LEG_ID
+  LOG_INF("quadruped leg %s (id %u, ip %s) — Zephyr, 1 kHz control",
+          kLegName[leg::cfg::kLegId], leg::cfg::kLegId, leg::cfg::kMyIp);
 
-// Orange LED, from the board's devicetree alias "led0"
-const gpio_dt_spec led = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
+  leg::hal::disable_outputs();  // never twitch at boot
 
-} // namespace
+  if (!leg::hal::init())
+    LOG_WRN("HAL degraded (see overlay warnings) — continuing for bench use");
 
-int main()
-{
-    if (!gpio_is_ready_dt(&led)) {
-        printk("ERROR: the LED is not ready\n");
-        return 0;
-    }
-    gpio_pin_configure_dt(&led, GPIO_OUTPUT_INACTIVE);
+  if (!leg::hal::wdt_start())
+    LOG_ERR("hardware watchdog unavailable");
 
-    for (bool on = true;; on = !on) {
-        gpio_pin_set_dt(&led, on);
-        printk("LED %s (%lld ms)\n", on ? "on " : "off", static_cast<long long>(k_uptime_get()));
-        k_msleep(kBlinkMs);
-    }
+  // Release rx, control, tx, supervisor.
+  for (int i = 0; i < 4; ++i) k_sem_give(&leg::init_done);
+
+  LOG_INF("threads released; waiting for master heartbeat + ENABLE");
+  return 0;
 }

@@ -1,0 +1,9 @@
+# One firmware per leg: scripts/02_build makes a .hex for every row below.
+# Columns: firmware,code,leg_id,ip,name
+#   firmware  the number you type and label the Teensy with (1-4)
+#   leg_id    the leg's index in the code and in every packet (0-3)
+#   ip        must be 192.168.1.(11 + leg_id); the firmware refuses to build otherwise
+1,FR,0,192.168.1.11,Front Right
+2,FL,1,192.168.1.12,Front Left
+3,RR,2,192.168.1.13,Rear Right
+4,RL,3,192.168.1.14,Rear Left

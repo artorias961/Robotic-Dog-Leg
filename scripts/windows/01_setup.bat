@@ -2,7 +2,7 @@
 rem ============================================================================
 rem  One-time setup for the legs firmware scripts (Windows)
 rem
-rem    scripts\01_setup.bat [zephyr-workspace]        default: C:\zephyr
+rem    scripts\windows\01_setup.bat [zephyr-workspace]        default: C:\zephyr
 rem
 rem  - remembers where your Zephyr workspace is (made by
 rem    tools\zephyr_west\installer_west.bat) for 02_build.bat and 04_flash.bat
@@ -15,7 +15,7 @@ rem ============================================================================
 setlocal EnableExtensions
 set "SCRIPT_NAME=%~nx0"
 for %%I in ("%~dp0.") do set "SCRIPT_DIR=%%~fI"
-for %%I in ("%SCRIPT_DIR%\..") do set "APP_DIR=%%~fI"
+for %%I in ("%SCRIPT_DIR%\..\..") do set "APP_DIR=%%~fI"
 for %%I in ("%APP_DIR%\..\..") do set "REPO_DIR=%%~fI"
 
 rem ---- 1. Project folder --------------------------------------------------------
@@ -105,9 +105,9 @@ echo    Skipped. 04_flash.bat needs it - or flash by hand with PJRC's Teensy Loa
 echo.
 echo ============================================================================
 echo  Setup complete. Next:
-echo     scripts\02_build.bat         build what changed
-echo     scripts\03_clean_build.bat   clean full rebuild
-echo     scripts\04_flash.bat         build, flash, then open a serial monitor
+echo     scripts\windows\02_build.bat         build all four legs (what changed)
+echo     scripts\windows\03_clean_build.bat   clean full rebuild
+echo     scripts\windows\04_flash.bat         build, flash, then open a serial monitor
 echo ============================================================================
 call :maybe_pause
 exit /b 0
@@ -118,7 +118,7 @@ rem  Subroutines
 rem ============================================================================
 
 :build_loader
-rem Compiles PJRC's teensy_loader_cli into scripts\bin with MinGW gcc
+rem Compiles PJRC's teensy_loader_cli into scripts\windows\bin with MinGW gcc
 set "GCC="
 if exist "%REPO_DIR%\tools\mingw64\bin\gcc.exe" set "GCC=%REPO_DIR%\tools\mingw64\bin\gcc.exe"
 if not defined GCC for %%F in (gcc.exe) do if not "%%~$PATH:F"=="" set "GCC=%%~$PATH:F"

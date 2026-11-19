@@ -1,16 +1,47 @@
 /*
  * Robotic Dog - legs firmware devicetree overlay (Teensy 4.1)
  *
- * Sends the Zephyr console (printk + logging) to a USB serial port on the
- * Teensy's micro-USB connector instead of the board's default console UART
- * (pin table: Zephyr's Teensy 4 board documentation).
- * Same as Zephyr's cdc-acm-console snippet.
+ * The only overlay this app uses. (Zephyr ignores app.overlay whenever a
+ * boards/<board>.overlay exists, so keep everything in this one file.)
+ *
+ * 1. USB console: sends the Zephyr console (printk + logging) to a USB serial
+ *    port on the Teensy's micro-USB connector instead of the board's default
+ *    console UART (pin table: Zephyr's Teensy 4 board documentation).
+ *    Same as Zephyr's cdc-acm-console snippet.
+ * 2. Hardware watchdog for the supervisor's deadman (src/hal.cpp).
+ * 3. Sensor and servo pins (TEMPLATE, switched off): src/hal.cpp reads them
+ *    from the zephyr,user node below. While LEG_PINS_WIRED is 0, the HAL
+ *    builds with stubbed sensors/outputs and logs a warning at boot.
  */
+
+/* Set to 1 once the leg is wired like section 3 at the end of this file (edit
+ * the pins there first if the real wiring differs), then do a clean build. */
+#ifndef LEG_PINS_WIRED
+#define LEG_PINS_WIRED 0
+#endif
 
 / {
 	chosen {
 		zephyr,console = &cdc_acm_uart0;
 		zephyr,shell-uart = &cdc_acm_uart0;
+	};
+
+	aliases {
+		/* i.MX RT1062 WDOG2 (label wdog1) for the supervisor deadman. */
+		watchdog0 = &wdog1;
+	};
+
+	zephyr,user {
+#if LEG_PINS_WIRED
+		/* io-channels: 6 ADC inputs - [0..2] position tilt, hip, knee;
+		 *                             [3..5] current   tilt, hip, knee
+		 * pwms:        3 servo outputs - tilt, hip, knee (50 Hz frame) */
+		io-channels = <&adc1 7>, <&adc1 8>, <&adc1 12>,
+			      <&adc1 11>, <&adc1 6>, <&adc1 5>;
+		pwms = <&flexpwm2_pwm0 0 PWM_HZ(50) PWM_POLARITY_NORMAL>,
+		       <&flexpwm2_pwm1 0 PWM_HZ(50) PWM_POLARITY_NORMAL>,
+		       <&flexpwm2_pwm2 0 PWM_HZ(50) PWM_POLARITY_NORMAL>;
+#endif
 	};
 };
 
@@ -19,3 +50,92 @@
 		compatible = "zephyr,cdc-acm-uart";
 	};
 };
+
+/* Zephyr's SoC file ships both WDOGs disabled; the deadman needs this one on.
+ * (Its driver accepts timeouts from 500 ms up, in 0.5 s steps.) */
+&wdog1 {
+	status = "okay";
+};
+
+/* ---- 3. Sensor and servo pins (example wiring) ------------------------------
+ *
+ * Sensors: Teensy pins 14-19 (A0-A5) = ADC1 inputs 7, 8, 12, 11, 6, 5. The
+ *   numbers in io-channels and channel@N are ADC inputs, not Teensy pins.
+ *   Pins 18/19 are also the I2C bus (Wire); if the leg needs I2C, use A6-A9
+ *   instead (pins 20-23 = inputs 15, 0, 13, 14). Each input needs a channel@N
+ *   node, or adc_channel_setup_dt() fails. This ADC only accepts gain 1, the
+ *   internal reference and the default acquisition time.
+ * Servos: Teensy pins 4, 5, 6 = FlexPWM2 submodules 0, 1, 2, output A
+ *   (channel 0 in pwms). The teensy41 board routes no PWM pins, so each
+ *   submodule needs its own pinctrl group.
+ */
+#if LEG_PINS_WIRED
+#define LEG_ADC_INPUT(n)						\
+	channel@n {							\
+		reg = <n>;						\
+		zephyr,gain = "ADC_GAIN_1";				\
+		zephyr,reference = "ADC_REF_INTERNAL";			\
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;	\
+		zephyr,resolution = <12>;				\
+	}
+
+&adc1 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	LEG_ADC_INPUT(7);	/* pin 14, A0: tilt position */
+	LEG_ADC_INPUT(8);	/* pin 15, A1: hip position */
+	LEG_ADC_INPUT(12);	/* pin 16, A2: knee position */
+	LEG_ADC_INPUT(11);	/* pin 17, A3: tilt current */
+	LEG_ADC_INPUT(6);	/* pin 18, A4: hip current */
+	LEG_ADC_INPUT(5);	/* pin 19, A5: knee current */
+};
+
+&pinctrl {
+	pinmux_servo_tilt: pinmux_servo_tilt {
+		group0 {
+			pinmux = <&iomuxc_gpio_emc_06_flexpwm2_pwma0>;	/* pin 4 */
+			drive-strength = "r0-4";
+			slew-rate = "slow";
+			nxp,speed = "100-mhz";
+		};
+	};
+
+	pinmux_servo_hip: pinmux_servo_hip {
+		group0 {
+			pinmux = <&iomuxc_gpio_emc_08_flexpwm2_pwma1>;	/* pin 5 */
+			drive-strength = "r0-4";
+			slew-rate = "slow";
+			nxp,speed = "100-mhz";
+		};
+	};
+
+	pinmux_servo_knee: pinmux_servo_knee {
+		group0 {
+			pinmux = <&iomuxc_gpio_b0_10_flexpwm2_pwma2>;	/* pin 6 */
+			drive-strength = "r0-4";
+			slew-rate = "slow";
+			nxp,speed = "100-mhz";
+		};
+	};
+};
+
+&flexpwm2_pwm0 {
+	status = "okay";
+	pinctrl-0 = <&pinmux_servo_tilt>;
+	pinctrl-names = "default";
+};
+
+&flexpwm2_pwm1 {
+	status = "okay";
+	pinctrl-0 = <&pinmux_servo_hip>;
+	pinctrl-names = "default";
+};
+
+&flexpwm2_pwm2 {
+	status = "okay";
+	pinctrl-0 = <&pinmux_servo_knee>;
+	pinctrl-names = "default";
+};
+#endif /* LEG_PINS_WIRED */

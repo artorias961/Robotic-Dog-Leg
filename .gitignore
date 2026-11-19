@@ -1,6 +1,7 @@
-# Zephyr build output
+# Zephyr build output, and the per-leg .hex files copied out of it
 build/
+firmware/
 
-# Per-computer settings and tools made by scripts/setup
-scripts/.workspace
-scripts/bin/
+# Per-computer settings and tools made by 01_setup (in scripts/windows or scripts/linux)
+scripts/*/.workspace
+scripts/*/bin/

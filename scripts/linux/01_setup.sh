@@ -2,7 +2,7 @@
 # =============================================================================
 #  One-time setup for the legs firmware scripts (Linux)
 #
-#    bash scripts/01_setup.sh [zephyr-workspace]        default: ~/zephyr
+#    bash scripts/linux/01_setup.sh [zephyr-workspace]  default: ~/zephyr
 #
 #  - remembers where your Zephyr workspace is (made by
 #    tools/zephyr_west/installer_west.sh) for 02_build.sh and 04_flash.sh
@@ -13,7 +13,7 @@
 # =============================================================================
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 REPO_DIR="$(cd "$APP_DIR/../.." && pwd)"
 
 step() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
@@ -53,7 +53,7 @@ LINE="export ZEPHYR_BASE=\"$WS/zephyr\""
 if grep -qxF "$LINE" "$HOME/.bashrc" 2>/dev/null; then
     echo "   ZEPHYR_BASE is already set in ~/.bashrc"
 else
-    printf '\n# Zephyr workspace (added by Robotic Dog scripts/01_setup.sh)\n%s\n' "$LINE" >> "$HOME/.bashrc"
+    printf '\n# Zephyr workspace (added by Robotic Dog scripts/linux/01_setup.sh)\n%s\n' "$LINE" >> "$HOME/.bashrc"
     echo "   Added ZEPHYR_BASE to ~/.bashrc (new terminals pick it up)"
 fi
 echo "   Using $WS - saved for 02_build.sh and 04_flash.sh"
@@ -118,8 +118,8 @@ cat <<DONE
 
 =============================================================================
  Setup complete. Next:
-    bash scripts/02_build.sh         build what changed
-    bash scripts/03_clean_build.sh   clean full rebuild
-    bash scripts/04_flash.sh         build, flash, then open a serial monitor
+    bash scripts/linux/02_build.sh         build all four legs (what changed)
+    bash scripts/linux/03_clean_build.sh   clean full rebuild
+    bash scripts/linux/04_flash.sh         build, flash, then open a serial monitor
 =============================================================================
 DONE
