@@ -142,7 +142,9 @@ void rx_main(void*, void*, void*) {
   }
 }
 
+}  // namespace
+
+// Outside the anonymous namespace so shared.hpp's rx_tid names this thread.
 K_THREAD_DEFINE(rx_tid, 4096, rx_main, NULL, NULL, NULL, 5, 0, 0);
 
-}  // namespace
 }  // namespace leg

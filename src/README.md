@@ -32,10 +32,10 @@ semaphore; Ethernet ISRs belong to the ENET driver).
   a CommsLost fault.
 - Per-tick (cheap): range clamp, hard overcurrent -> cut PWM, stay cut.
 - Supervisor (slow, clamped to 10–50 Hz): I²t window, tracking error that
-  persists 0.5 s, loss trend, stack margins (about once a second), and the
-  deadman — it feeds the 1 s hardware WDOG only if the control thread set its
-  health flag since the last pass. Hung control loop -> WDOG starves ->
-  hardware reset.
+  persists 0.5 s, loss trend, stack margins of its own four threads (about
+  once a second), and the deadman — it feeds the 1 s hardware WDOG only if
+  the control thread set its health flag since the last pass. Hung control
+  loop -> WDOG starves -> hardware reset.
 - Faults stay latched until the operator acknowledges them (CLEAR_FAULTS,
   honored only while disarmed). ENABLE is refused while faults are latched.
 

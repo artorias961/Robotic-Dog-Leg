@@ -1,8 +1,8 @@
 #pragma once
 // The green boxes from the leg diagram — the ONLY places data crosses
-// threads. No mutexes anywhere on the hot path.
+// threads. Nothing on the hot path blocks or sleeps.
 //
-//   setpoint slot   seqlock, latest wins        RX  -> control
+//   setpoint slot   spinlock copy, latest wins  RX  -> control
 //   command queue   k_msgq, depth 8             RX  -> control
 //   state snapshot  double buffer               control -> TX
 //   health flag     atomic, set every tick      control -> supervisor
@@ -14,32 +14,33 @@
 
 namespace leg {
 
-// ---- setpoint slot (seqlock — latest wins) ---------------------------------
+// ---- setpoint slot (latest wins) -------------------------------------------
 struct Setpoints {
   float target_rad[3]{};
 };
 
+// The RX thread writes; the control and supervisor threads read. On this
+// single-core chip a k_spinlock just masks interrupts for the 12-byte copy, so
+// no thread can be preempted halfway through it and nobody ever waits. (A
+// seqlock is wrong here: if the 1 kHz tick preempted the RX thread mid-write,
+// the higher-priority control thread spun forever on a write the RX thread
+// could never get the CPU to finish.)
 class SetpointSlot {
  public:
   void store(const Setpoints& s) {
-    const std::uint32_t v = seq_.load(std::memory_order_relaxed);
-    seq_.store(v + 1, std::memory_order_release);  // odd: write in progress
+    const k_spinlock_key_t key = k_spin_lock(&lock_);
     value_ = s;
-    seq_.store(v + 2, std::memory_order_release);  // even: stable
+    k_spin_unlock(&lock_, key);
   }
   Setpoints load() const {
-    Setpoints out;
-    std::uint32_t a, b;
-    do {
-      a = seq_.load(std::memory_order_acquire);
-      out = value_;
-      b = seq_.load(std::memory_order_acquire);
-    } while (a != b || (a & 1u));
+    const k_spinlock_key_t key = k_spin_lock(&lock_);
+    const Setpoints out = value_;
+    k_spin_unlock(&lock_, key);
     return out;
   }
 
  private:
-  std::atomic<std::uint32_t> seq_{0};
+  mutable k_spinlock lock_{};  // zero-initialized = unlocked
   Setpoints value_{};
 };
 
@@ -110,6 +111,13 @@ extern SharedState g;
 
 // Startup gate: main() gives this 4 times once HAL + watchdog are up.
 extern k_sem init_done;
+
+// The four application threads (K_THREAD_DEFINE in their own .cpp files).
+// The supervisor's stack check watches these.
+extern const k_tid_t rx_tid;
+extern const k_tid_t control_tid;
+extern const k_tid_t tx_tid;
+extern const k_tid_t supervisor_tid;
 
 // Fault bits (telemetry fault_flags)
 inline constexpr std::uint16_t kFaultOverCurrent = 1u << 0;

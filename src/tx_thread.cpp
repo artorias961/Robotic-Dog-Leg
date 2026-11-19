@@ -58,7 +58,9 @@ void tx_main(void*, void*, void*) {
   }
 }
 
+}  // namespace
+
+// Outside the anonymous namespace so shared.hpp's tx_tid names this thread.
 K_THREAD_DEFINE(tx_tid, 4096, tx_main, NULL, NULL, NULL, 7, 0, 0);
 
-}  // namespace
 }  // namespace leg

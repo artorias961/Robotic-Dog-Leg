@@ -67,24 +67,25 @@ void supervisor_main(void*, void*, void*) {
       LOG_WRN("packet loss rising: %u total", lost);
     last_lost = lost;
 
-    // Stack margins (diagram: "stack margins"): about once a second, walk
-    // every thread and flag any stack with less than kStackMarginBytes left.
-    // The _unlocked walk keeps interrupts enabled while stacks are scanned,
-    // so the scan cannot delay the 1 kHz control tick.
+    // Stack margins (diagram: "stack margins"): about once a second, flag any
+    // of OUR four threads with less than kStackMarginBytes of stack left.
+    // Zephyr's own threads are left out on purpose: it sizes them tightly
+    // (the idle thread has 320 bytes in total), so a fixed margin would fault
+    // a healthy leg, and the MPU stack guard (CONFIG_MPU_STACK_GUARD) already
+    // catches a real overflow in any thread. The scan runs with interrupts
+    // enabled, so it cannot delay the 1 kHz control tick.
 #ifdef CONFIG_INIT_STACKS
     if (++pass % cfg::kStackCheckEvery == 0) {
-      bool stack_low = false;
-      k_thread_foreach_unlocked(
-          [](const k_thread* t, void* user) {
-            std::size_t unused = 0;
-            if (k_thread_stack_space_get(t, &unused) == 0 &&
-                unused < cfg::kStackMarginBytes)
-              *static_cast<bool*>(user) = true;
-          },
-          &stack_low);
-      if (stack_low) {
-        faults |= kFaultStack;
-        LOG_ERR("a thread stack is nearly full");
+      static constexpr const char* kName[] = {"rx", "control", "tx", "supervisor"};
+      const k_tid_t tids[] = {rx_tid, control_tid, tx_tid, supervisor_tid};
+      for (int i = 0; i < 4; ++i) {
+        std::size_t unused = 0;
+        if (k_thread_stack_space_get(tids[i], &unused) == 0 &&
+            unused < cfg::kStackMarginBytes) {
+          faults |= kFaultStack;
+          LOG_ERR("%s thread stack nearly full: %u bytes left", kName[i],
+                  static_cast<unsigned>(unused));
+        }
       }
     }
 #endif
@@ -107,7 +108,9 @@ void supervisor_main(void*, void*, void*) {
   }
 }
 
+}  // namespace
+
+// Outside the anonymous namespace so shared.hpp's supervisor_tid names this thread.
 K_THREAD_DEFINE(supervisor_tid, 2048, supervisor_main, NULL, NULL, NULL, 9, 0, 0);
 
-}  // namespace
 }  // namespace leg

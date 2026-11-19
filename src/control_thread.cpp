@@ -145,7 +145,9 @@ void control_main(void*, void*, void*) {
   }
 }
 
+}  // namespace
+
+// Outside the anonymous namespace so shared.hpp's control_tid names this thread.
 K_THREAD_DEFINE(control_tid, 4096, control_main, NULL, NULL, NULL, 2, 0, 0);
 
-}  // namespace
 }  // namespace leg
